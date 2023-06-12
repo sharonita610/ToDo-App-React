@@ -212,7 +212,7 @@ const Join = () => {
             flag = false;
         } else {
             msg = '패스워드가 일치합니다.';
-            flag = false;
+            flag = true;
         }
 
         saveInputState({
@@ -262,7 +262,7 @@ const Join = () => {
 
         // 회원가입 서버 요청
         if(isValid()){
-            // fetchSignUpPost();
+            fetchSignUpPost();
             alert('회원가입 정보를 서버에 전송합니다.')
         } else {
             alert('입력란을 다시 확인해주세요!')
@@ -384,4 +384,4 @@ const Join = () => {
 
 }
 
-export default Join
+export default Join;
