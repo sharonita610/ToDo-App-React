@@ -3,22 +3,48 @@ import TodoHeader from "./TodoHeader";
 import TodoMain from "./TodoMain";
 import TodoInput from "./TodoInput";
 import './SCSS/TodoTemplate.scss';
+import {useNavigate} from "react-router-dom";
+import {getLoginUserInfo, setLoginUserInfo} from "../../util/login-util";
+import {API_BASE_URL as BASE, TODO, USER} from '../../config/host-config';
+import {Spinner} from "reactstrap";
 
-import {API_BASE_URL as BASE, TODO} from '../../config/host-config';
 
 const TodoTemplate = () => {
 
+    // 로딩 상태값 관리
+    const [loading, setLoading] = useState(true);
+
+    const redirection = useNavigate();
+
+    // 로그인 인증 토큰 얻어오기
+    // const token = getLoginUserInfo().token; // js 파일에서 import 한 토큰을 가져옴
+    const [token, setToken] = useState(getLoginUserInfo().token);
+
+
+    // 요청 헤서 설정
+    const requestHeader = {
+
+        'content-type': 'application/json',
+        'Athorization': 'Bearer ' + token
+
+    };
+
+
     // 서버에 할일 목록(json)을 요청해서 받아와야 함
     const API_BASE_URL = BASE + TODO;
+
+    const API_USER_URL = BASE + USER;
+
+    }
 
     // todos배열을 상태관리
     const [todos, setTodos] = useState([]);
 
     // id값 시퀀스 생성 함수
-    const makeNewId = () => {
-        if (todos.length === 0) return 1;
-        return todos[todos.length - 1].id + 1;
-    }
+    // const makeNewId = () => {
+    //     if (todos.length === 0) return 1;
+    //     return todos[todos.length - 1].id + 1;
+    // }
 
     // TodoInput에게 todoText를 받아오는 함수
     const addTodo = todoText => {
@@ -40,12 +66,17 @@ const TodoTemplate = () => {
 
         fetch(API_BASE_URL, {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: requestHeader,
             body: JSON.stringify(newTodo)
         })
-                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 200) return res.json();
+                    else if (res.status === 400) {
+                        alert('일반회원은 일정 등록이 5개로 제한됩니다 ㅜㅜ');
+                    }
+                })
                 .then(json => {
-                    setTodos(json.todos);
+                    json && setTodos(json.todos);
                 });
     };
 
@@ -56,7 +87,8 @@ const TodoTemplate = () => {
         // setTodos(todos.filter(todo => todo.id !== id));
 
         fetch(`${API_BASE_URL}/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: requestHeader
         })
                 .then(res => res.json())
                 .then(json => {
@@ -71,7 +103,7 @@ const TodoTemplate = () => {
 
         fetch(API_BASE_URL, {
             method: 'PUT',
-            headers: {'content-type': 'application/json'},
+            headers: requestHeader,
             body: JSON.stringify({
                 done: !done,
                 id: id
@@ -97,29 +129,93 @@ const TodoTemplate = () => {
     // 체크가 안된 할 일의 개수 카운트하기
     const countRestTodo = () => todos.filter(todo => !todo.done).length;
 
+    const fetchPromote = async () => {
+
+        const res = await fetchPromote(API_USER_URL + '/promote', {
+            method: 'PUT',
+            headers: requestHeader
+        });
+
+        if(res.status === 403) {
+                alert('이미 프리미엄 회원이거나 관리자 입니다.');
+        } else if(res.status === 200) {
+            const json = await res.json();
+            console.log(json);
+            // 토큰 데이터 갱신
+            setLoginUserInfo(json);
+
+        }
+    };
+
+    // 프리미엄등급 승격처리
+
+    const promote = () => {
+
+        // console.log('등급 승격 서버 요청!!');
+        fetchPromote();
+
+    }
 
     useEffect(() => {
 
-        fetch(API_BASE_URL)
-                .then(res => res.json())
+        fetch(API_BASE_URL, {
+            method: 'GET',
+            headers: requestHeader
+        })
+                .then(res => {
+                    if (res.status === 200) return res.json();
+                    else if (res.status === 403) {
+                        alert('로그인이 필요한 서비스입니다.')
+                        redirection('/login');
+                        return;
+                    } else {
+                        alert('서버가 불안정합니다.');
+                    }
+                })
                 .then(json => {
                     // console.log(json.todos);
+                    if (!json) return;
 
                     setTodos(json.todos);
+
+                    //로딩 완료 처리
+                    setLoading(false);
                 });
 
     }, []);
 
-    return (
+    // 로딩이 끝난 후 보여줄 컴포넌트
+    const loadEndedPage = (
             <div className='TodoTemplate'>
-                <TodoHeader count={countRestTodo} />
+                <TodoHeader
+                        count={countRestTodo}
+                        promote={promote}
+
+                />
+
                 <TodoMain
                         todoList={todos}
                         remove={removeTodo}
                         check={checkTodo}
                 />
-                <TodoInput addTodo={addTodo} />
+                <TodoInput addTodo={addTodo}/>
             </div>
+
+    );
+    // 로딩 중일때 보여줄 컴포넌트
+    const loadingPage = (
+            <div className='loading'>
+                <Spinner color='danger'>
+                    loading...
+                </Spinner>
+            </div>
+    );
+
+
+    return (
+            <>
+                {loading ? loadingPage : loadEndedPage}
+            </>
     )
 }
 

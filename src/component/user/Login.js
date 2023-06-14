@@ -6,12 +6,20 @@ import {API_BASE_URL as BASE, USER} from "../../config/host-config";
 
 
 import {useNavigate} from "react-router-dom";
+import {isLogin, setLoginUserInfo} from "../../util/login-util";
 
 const Login = () => {
 
     const REQUEST_URL = BASE + USER + '/signin';
 
     const redirection = useNavigate();
+
+    if(isLogin()){
+        alert('이미 로그인 중입니다');
+        window.history.back();
+        return;
+    }
+
     // 서버에 AJAX 요청
     const fetchLogin = async () => {
 
@@ -19,6 +27,7 @@ const Login = () => {
         // 이메일, 비밀번호 입력 태그 얻어오기
         const $email = document.getElementById('email');
         const $password = document.getElementById('password');
+
         const res = await fetch(REQUEST_URL, {
             method: 'POST',
             headers: {'content-type': 'application/json'},
@@ -34,16 +43,17 @@ const Login = () => {
             return;
         }
 
-        const{token, userName, email, role} = await res.json();
+        const userInfo = await res.json();
         // console.log(json.userName);
 
         // json에 담긴 인증 정보를 클라이언트에 보관
         // 1. 로컬 스토리지 - 브라우저가 종료되어도 보관됨
         // 2. 세션 스토리지 - 브라우저가 종료되면 사라짐
+        setLoginUserInfo(userInfo);
 
-        localStorage.setItem('ACCESS_TOKEN', token);
-        localStorage.setItem('LOGIN_USERNAME', userName);
-        localStorage.setItem('USER_ROLE', role);
+        // localStorage.setItem('ACCESS_TOKEN', token);
+        // localStorage.setItem('LOGIN_USERNAME', userName);
+        // localStorage.setItem('USER_ROLE', role);
 
 
         // 홈으로 리다이렉트
